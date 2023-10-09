@@ -1,0 +1,6 @@
+elevenlabs
+numpy
+openai
+sounddevice
+soundfile
+toml

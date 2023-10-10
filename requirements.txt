@@ -1,6 +1,3 @@
-elevenlabs
-numpy
 openai
-sounddevice
-soundfile
+python-dotenv
 toml

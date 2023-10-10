@@ -1,15 +1,21 @@
+import logging
 import os
 import sys
 from threading import Event
 
-import elevenlabs
+import dotenv
 import openai
 import toml
 
+from tts_manager import TextToSpeechManager
 
 class AiTrivia:
     def __init__(self, config: dict) -> None:
         self._config = config
+        self._logger = logging.getLogger("aitrivia")
+        self._logger.setLevel(config["logging"]["level"])
+        self._voice_manager = TextToSpeechManager(config["voice"], config["logging"]["level"])
+
         ex = f'{config["ai_personality"]["personality_extra"]}.\n6) ' if len(config["ai_personality"]["personality_extra"]) > 0 else '' 
         self._system_message = {
             "role": "system",
@@ -36,40 +42,36 @@ class AiTrivia:
         self._message_history_max_sets = 5 # Keep history of last five questions (including current)
         self._message_history: list[dict] = [self._system_message]
 
-    def _cycle_ai_input(self, speak: bool = True) -> None:
+    def _cycle_ai_input(self) -> None:
+        if self._config["openai"]["bypass"]:
+            message_content = input(f'\n{self._config["ai_personality"]["name"]}: ')
+            self._message_history.append({"role": "assistant", "content": message_content})
+            self._voice_manager.speak(message_content)
+            print('\n')
+            return
+
+        self._logger.debug("Requesting AI response...")
         response = openai.ChatCompletion.create(
-            model=self._config["ai"]["model_name"],
+            model=self._config["openai"]["model_name"],
             max_tokens=1024,
             messages=self._message_history
         )
         if isinstance(response, dict):
+            self._logger.debug("Received AI response")
             self._message_history.append(response['choices'][0]['message'])
             message_content = response['choices'][0]['message']['content']
-            if speak:
-                try:
-                    message_audio = elevenlabs.generate(
-                        text=message_content,
-                        voice=self._config["voice"]["name"],
-                        model=self._config["voice"]["model_type"],
-                    )
-                    elevenlabs.play(message_audio, use_ffmpeg=False)
-                except Exception as e:
-                    print(f'Voice synthesis failed with: "{e}"')
-            print(f'\n{self._config["ai_personality"]["name"]}: {message_content}\n')
+            self._voice_manager.speak(message_content)
+            print(f'\n> {self._config["ai_personality"]["name"]}: {message_content}\n')
         else:
-            print(f'Something went wrong with getting the AI response')
+            self._logger.warning(f'Something went wrong with getting the AI response')
             self._message_history.append("No response given")
 
-    def _intro(self) -> None:
-        # print(system_message["content"])
-        # print([x.name for x in elevenlabs.voices()])
-        print(f'\n> Your {self._config["game"]["grade_level"]} grade level trivia today will be provided by {self._config["ai_personality"]["name"]} the {self._config["ai_personality"]["role"]}\n')
-
     def start(self, stop_flag: Event) -> None:
-        self._intro()
+        self._logger.debug(self._system_message["content"])
+        print(f'\n> Your {self._config["game"]["grade_level"]} grade level trivia today will be provided by {self._config["ai_personality"]["name"]} the {self._config["ai_personality"]["role"]}\n')
         while not stop_flag.is_set():
             # Update history as needed
-            if not self._config["ai"]["use_history"]:
+            if not self._config["openai"]["use_history"]:
                 self._message_history = [self._system_message]
             elif len(self._message_history) - 1 >= 4*self._message_history_max_sets:
                 self._message_history.pop(1) # Category
@@ -78,14 +80,14 @@ class AiTrivia:
                 self._message_history.pop(1) # Response
 
             # Get category from user
-            user_category_message = input("You: Ask me something about ")
+            user_category_message = input("> You: Ask me something about ")
             self._message_history.append({"role": "user", "content": f"Okay new question: Ask me something about {user_category_message}"})
 
             # Get question from GPT
             self._cycle_ai_input()
 
             # Get answer from user
-            user_answer_message = input("You: ")
+            user_answer_message = input("> You: ")
             self._message_history.append({"role": "user", "content": user_answer_message})
 
             # Get response from GPT
@@ -97,8 +99,13 @@ if __name__ == "__main__":
         print("Usage: AiTrivia.py <path-to-config-file>")
         exit(1)
 
-    config = toml.load(sys.argv[1])
-    elevenlabs.set_api_key(os.getenv("ELEVENLABS_KEY"))
-    openai.api_key = os.getenv("OPENAI_KEY")
-    openai.organization = config["ai"]["org_id"]
-    AiTrivia(config).start(Event())
+    env = dotenv.load_dotenv()
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    openai.organization = os.getenv("OPENAI_ORG_ID")
+    if openai.api_key is None or openai.organization is None:
+        print("OPENAI_API_KEY and OPENAI_ORG_ID must be set in .env file or environment variables")
+        exit(1)
+
+    logging.basicConfig()
+    ai = AiTrivia(toml.load(sys.argv[1]))
+    ai.start(Event())

@@ -12,6 +12,7 @@ voice_name = "train_lescault"
 enabled = false
 voice_name = "v2/en_speaker_6"
 stream = false
+stream_preload = 2
 
 [game]
 grade_level = "1st"

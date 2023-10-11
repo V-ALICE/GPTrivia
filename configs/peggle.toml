@@ -12,6 +12,7 @@ voice_name = "train_mouse"
 enabled = false
 voice_name = "v2/en_speaker_6" # TODO: not a very unicorn-sounding voice
 stream = false
+stream_preload = 2
 
 [game]
 grade_level = "1st"

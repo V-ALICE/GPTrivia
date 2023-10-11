@@ -1,6 +1,8 @@
 import os
 import logging
+from queue import Queue, Empty
 import tempfile
+import threading
 from typing import Any
 
 try:
@@ -101,6 +103,7 @@ class TextToSpeechManager:
         trash = ['\n', '\t'] # Characters that shouldn't be in voice synth text
         for char in trash:
             content = content.replace(char, "")
+        content.replace("...", ",") # ... breaks voice synth sometimes, so replace it as precaution
         return content
 
     def _speak_eleven(self, content: str) -> bool:
@@ -115,19 +118,34 @@ class TextToSpeechManager:
         return True
 
     def _speak_bark(self, content: str) -> bool:
-        contents = self._smart_split(self._clean_input(content), 200)
+        def keep_playing(q: Queue, gen_done: threading.Event) -> None:
+            while not gen_done.is_set() or not q.empty():
+                try:
+                    audio = q.get(timeout=1)
+                    sounddevice.wait()
+                    sounddevice.play(audio, bark.SAMPLE_RATE)
+                except Empty:
+                    pass
+
+        contents = self._smart_split(self._clean_input(content), 150)
         if len(contents) > 1:
             self._logger.debug(f"Text was split into segments: {contents}")  
         if self._config["bark"]["stream"]:
             self._logger.info("Generating streaming voice synth with Bark... Depending how fast segments generate, there may be gaps in the audio")
+            audio_queue = Queue()
+            gen_done = threading.Event()
+            cycle = threading.Thread(target=keep_playing, args=(audio_queue, gen_done))
+            for _ in range(min(self._config["bark"]["stream_preload"], len(contents))):
+                audio_queue.put(bark.generate_audio(contents.pop(0), history_prompt=self._config["bark"]["voice_name"]))
+            cycle.start()
             for text in contents:
-                audio = bark.generate_audio(text, history_prompt=self._config["bark"]["voice_name"])
-                sounddevice.wait()
-                sounddevice.play(audio, bark.SAMPLE_RATE)
+                audio_queue.put(bark.generate_audio(text, history_prompt=self._config["bark"]["voice_name"]))
+            gen_done.set()
+            cycle.join()
             sounddevice.wait()
         else:
             self._logger.info("Generating voice synth with Bark... This may take a while")
-            audios: Any = []
+            audios: list = []
             for text in contents:
                 audios.append(bark.generate_audio(text, history_prompt=self._config["bark"]["voice_name"]))
             for audio in audios:

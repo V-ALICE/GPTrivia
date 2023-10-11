@@ -1,29 +1,48 @@
-[voice.eleven]
+[tts.eleven]
 enabled = false
 voice_name = "Fin"
 model_type = "eleven_multilingual_v1"
 ffmpeg_available = false
 
-[voice.tortoise]
+[tts.azure]
 enabled = false
-voice_name = "train_mouse"
+voice_name = "en-IE-ConnorNeural"
+override_device_id = false
+device_id = ""
 
-[voice.bark]
+[tts.bark]
 enabled = false
 voice_name = "v2/en_speaker_6" # TODO: not a very unicorn-sounding voice
 stream = false
 stream_preload = 2
 
+[stt.azure]
+enabled = false
+push_to_talk = true
+override_device_id = false
+device_id = ""
+
+[stt.sphinx]
+enabled = false
+pause_threshold = 1.5
+energy_threshold = 300
+auto_calibrate = true
+override_device_index = false
+device_index = 0
+
 [game]
 grade_level = "1st"
+local_nationality = "American"
 
 [openai]
 bypass = false
 model_name = "gpt-4"
+per_response_max_tokens = 1024
 use_history = true
+history_max_sets = 5
 
 [logging]
-level = "DEBUG"
+level = "WARNING"
 
 [ai_personality]
 name = "Bjorn"

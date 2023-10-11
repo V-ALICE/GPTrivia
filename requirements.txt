@@ -1,3 +1,5 @@
+numpy
 openai
+pynput
 python-dotenv
 toml

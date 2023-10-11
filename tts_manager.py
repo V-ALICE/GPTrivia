@@ -1,9 +1,7 @@
 import os
 import logging
 from queue import Queue, Empty
-import tempfile
 import threading
-from typing import Any
 
 try:
     import elevenlabs
@@ -12,28 +10,27 @@ except ImportError or ModuleNotFoundError:
     _ELEVEN_LOAD = False
 
 try:
+    import azure.cognitiveservices.speech as speechsdk
+    _AZURE_LOAD = True
+except ImportError or ModuleNotFoundError:
+    _AZURE_LOAD = False
+
+try:
     import bark
     import sounddevice
     _BARK_LOAD = True
 except ImportError or ModuleNotFoundError:
     _BARK_LOAD = False
 
-try:
-    from tortoise.api import TextToSpeech
-    from tortoise.utils import audio as tts_audio
-    
-    import pydub
-    import pydub.playback
-    import torchaudio
-    _TORTOISE_LOAD = True
-except ImportError or ModuleNotFoundError:
-    _TORTOISE_LOAD = False
-
 class TextToSpeechManager:
     def __init__(self, config: dict, log_level: str) -> None:
         self._config = config
         self._logger = logging.getLogger("tts-manager")
         self._logger.setLevel(log_level)
+
+        if sum([config[key]["enabled"] for key in config.keys()]) > 1:
+            self._logger.error("Cannot have multiple Text-to-Speech modules enabled at once. Please edit your config")
+            exit(1)
 
         # ElevenLabs audio
         self._use_eleven = _ELEVEN_LOAD and config["eleven"]["enabled"]
@@ -43,6 +40,22 @@ class TextToSpeechManager:
         if config["eleven"]["enabled"] and not _ELEVEN_LOAD:
              self._logger.warning("ElevenLabs TTS is enabled but could not be loaded. Audio will not be played.")
 
+        # Azure audio
+        self._use_azure = _AZURE_LOAD and config["azure"]["enabled"]
+        if config["azure"]["enabled"] and not _AZURE_LOAD:
+             self._logger.warning("Azure TTS is enabled but could not be loaded. Audio will not be played.")
+        if self._use_azure:
+            speech_config = speechsdk.SpeechConfig(
+                subscription=os.environ.get('SPEECH_KEY'),
+                region=os.environ.get('SPEECH_REGION')
+            )
+            speech_config.speech_synthesis_voice_name = self._config["azure"]["voice_name"]
+            device_override = self._config["azure"]["device_id"] if self._config["azure"]["override_device_id"] else None
+            audio_config = speechsdk.audio.AudioOutputConfig(
+                use_default_speaker=(not self._config["azure"]["override_device_id"]),
+                device_name=device_override)
+            self._azure = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+
         # Bark audio
         self._use_bark = _BARK_LOAD and config["bark"]["enabled"]
         if config["bark"]["enabled"] and not _BARK_LOAD:
@@ -51,47 +64,27 @@ class TextToSpeechManager:
             self._logger.info("Loading Bark models... If the models aren't cached yet this will take a while")
             bark.preload_models()
 
-        # Tortoise-tts audio
-        self._tortoise_tts_kwargs = {
-            "kv_cache": True,
-            "half": True,
-            "use_deepspeed": False,
-        }
-        self._tortoise_gen_kwargs = {
-            "preset": "ultra_fast",
-            "verbose": False,
-            "cvvp_amount": 0.0,
-        }
-        self._use_tortoise = _TORTOISE_LOAD and config["tortoise"]["enabled"]
-        if config["tortoise"]["enabled"] and not _TORTOISE_LOAD:
-             self._logger.warning("Tortoise TTS is enabled but could not be loaded. Audio will not be played.")    
-        if self._use_tortoise:
-            self._logger.info("Loading Tortoise models... If the models aren't cached yet this will take a while")
-            self._tortoise = TextToSpeech(**self._tortoise_tts_kwargs)
-            self._tortoise_voices, self._tortoise_latents = tts_audio.load_voices(
-                [self._config["tortoise"]["voice_name"]]
-            )
-
-    def _smart_split(self, content: str, max_len: int = 300) -> list[str]:
+    def _smart_split(self, content: str, max_len: int = 200) -> list[str]:
         tier1_splits = ['.', '?', '!'] # Ideal to split at these characters
         tier2_splits = [':', ';', '—'] # If no tier 1 splits are available, use these
         tier3_splits = [','] # If no tier 1 or 2 splits are available, use these
         tier4_splits = [' '] # If no other splits are available, these can used as a worst-case scenario
-        additions = ['"'] # These might come after a split character, in which case they should be included
+        tier1_additions = ['"', '?', '!'] # These might come after a tier 1 split character, in which case they should be included
 
         segments: list[str] = []
         while len(content) > max_len:
             idx = max([content.rfind(x, 0, max_len) for x in tier1_splits])
             if idx == -1:
                 idx = max([content.rfind(x, 0, max_len) for x in tier2_splits])
+            else:
+                while idx+1 < len(content) and content[idx+1] in tier1_additions:
+                    idx += 1
             if idx == -1:
                 idx = max([content.rfind(x, 0, max_len) for x in tier3_splits])
             if idx == -1:
                 idx = max([content.rfind(x, 0, max_len) for x in tier4_splits])
-            if idx == -1:
-                break # This text has no useful places to split within the given max_len
-            if len(content) > idx and content[idx+1] in additions:
-                idx += 1
+            if idx == -1: # This text has no useful places to split within the given max_len
+                break
             idx += 1 # Add one so the split character is included with first chunk
             segments.append(content[:idx].strip())
             content = content[idx:]
@@ -99,16 +92,18 @@ class TextToSpeechManager:
         segments.append(content.strip())
         return segments
     
-    def _clean_input(self, content: str) -> str:
+    def _clean_input(self, content: str, avoid_ellipses: bool = False) -> str:
         trash = ['\n', '\t'] # Characters that shouldn't be in voice synth text
         for char in trash:
             content = content.replace(char, "")
-        content.replace("...", ",") # ... breaks voice synth sometimes, so replace it as precaution
+        if avoid_ellipses:
+            content.replace("...", ",") # ellipses sometimes break voice synth
+            content.replace("…", ",")
         return content
 
     def _speak_eleven(self, content: str) -> bool:
         # TODO: add stream support?
-        self._logger.debug("Requesting voice synth from ElevenLabs...")
+        self._logger.info("Requesting voice synth from ElevenLabs...")
         message_audio = elevenlabs.generate(
             text=self._clean_input(content),
             voice=self._config["eleven"]["voice_name"],
@@ -116,6 +111,19 @@ class TextToSpeechManager:
         )
         elevenlabs.play(message_audio, use_ffmpeg=self._config["eleven"]["ffmpeg_available"])
         return True
+
+    def _speak_azure(self, content: str) -> bool:
+        self._logger.info("Requesting voice synth from Azure...")
+        speech_synthesis_result = self._azure.speak_text_async(content).get()
+        if speech_synthesis_result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+            return True
+        if speech_synthesis_result.reason == speechsdk.ResultReason.Canceled:
+            cancellation_details = speech_synthesis_result.cancellation_details
+            self._logger.info(f"Speech synthesis canceled: {cancellation_details.reason}")
+            if cancellation_details.reason == speechsdk.CancellationReason.Error:
+                if cancellation_details.error_details:
+                    self._logger.warning(f"Error details: {cancellation_details.error_details}")
+        return False
 
     def _speak_bark(self, content: str) -> bool:
         def keep_playing(q: Queue, gen_done: threading.Event) -> None:
@@ -126,6 +134,8 @@ class TextToSpeechManager:
                     sounddevice.play(audio, bark.SAMPLE_RATE)
                 except Empty:
                     pass
+                except KeyboardInterrupt:
+                    break
 
         contents = self._smart_split(self._clean_input(content), 150)
         if len(contents) > 1:
@@ -153,30 +163,14 @@ class TextToSpeechManager:
                 sounddevice.wait()
         return True
 
-    def _speak_tortoise(self, content: str) -> bool:
-        # TODO: split input so that the output isn't terrible
-        # TODO: with split input, add stream option
-        # TODO: playback using something else? Like sounddevice
-        self._logger.info("Generating voice synth with Tortoise-TTS... This may take a while")
-        gen = self._tortoise.tts_with_preset(
-            self._clean_input(content),
-            k=1,
-            voice_samples=self._tortoise_voices,
-            conditioning_latents=self._tortoise_latents,
-            **self._tortoise_gen_kwargs,
-        )
-        f = tempfile.NamedTemporaryFile(suffix='.wav', delete=True)
-        torchaudio.save(f.name, gen.squeeze(0).cpu(), 24000)
-        pydub.playback.play(pydub.AudioSegment.from_wav(f.name))
-
     def speak(self, content: str) -> bool:
         try:
             if self._use_eleven:
                 return self._speak_eleven(content)
-            elif self._use_bark:
+            if self._use_bark:
                 return self._speak_bark(content)
-            elif self._use_tortoise:
-                return self._speak_tortoise(content)
+            if self._use_azure:
+                return self._speak_azure(content)
         except Exception as e:
             self._logger.warning(f'Voice synthesis failed with: "{e}"')
         return False

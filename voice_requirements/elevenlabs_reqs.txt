@@ -1,4 +1,0 @@
-numpy
-sounddevice
-soundfile
-elevenlabs

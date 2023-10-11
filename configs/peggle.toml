@@ -1,0 +1,35 @@
+[voice.eleven]
+enabled = false
+voice_name = "Fin"
+model_type = "eleven_multilingual_v1"
+ffmpeg_available = false
+
+[voice.tortoise]
+enabled = false
+voice_name = "train_mouse"
+
+[voice.bark]
+enabled = false
+voice_name = "v2/en_speaker_6" # TODO: not a very unicorn-sounding voice
+stream = false
+
+[game]
+grade_level = "1st"
+
+[openai]
+bypass = false
+model_name = "gpt-4"
+use_history = true
+
+[logging]
+level = "DEBUG"
+
+[ai_personality]
+name = "Bjorn"
+role_base = "magical unicorns"
+role = "unicorn"
+role_desc = "a magical unicorn who created the videogame Peggle and are the headmaster of Peggle University" # You are...
+likes_to_reference = "magical powers and unicorn attributes" # You occasionally reference your...
+love_and_pride = "the game Peggle" # You love...and are incredibly proud of it
+hope_for_player = "playing Peggle" # You hope that the person you are conversing with is having a great time...
+personality_extra = "" # Extra personality request, i.e. "Sometimes you act like you're falling in love with the player."

@@ -1,8 +1,14 @@
-# SillyAiTrivia
+# GPTrivia
 
-Inspired by DougDoug's stupid (in a good way) AI streams
+Play stupid trivia with GPT-4, inspired by DougDoug's ridiculous AI trivia stream.
+
+**Notes**
+- I threw this together just for fun, so the code is messy and might not work correctly sometimes. These instructions may not be complete or accurate either
+- Only tested on Windows. All of the resources *should* work on Linux, but likely require extra setup/packages that aren't noted here
+- Speech-to-Text will use the default mic unless an override is set
 
 **Required**
+- Python >=3.8
 - `pip install -r requirements.txt`
 
 **Optional**
@@ -19,11 +25,11 @@ Inspired by DougDoug's stupid (in a good way) AI streams
 **Run**
 - `python ai_trivia.py <path-to-config>`
 
-**Notes**
-- Mostly only tested on Windows
-- Speech-to-Text will use the default mic unless an override is set
-- May need to install different versions of torch depending on CUDA versions
+**Regarding Bark**
+- See https://github.com/suno-ai/bark
+- Bark is a local Text-to-Speech model and takes time to run even on high-end hardware. If you don't have a decent GPU with 8+ GB of VRAM, consider sticking to remote options
+- You may need to install a different version of torch depending on your CUDA version
+- The full Bark model requires 12GB of VRAM. This can be lowered to 8GB by setting `SUNO_USE_SMALL_MODELS=True` in your environment
 
 **TODO**
-- Add option to quiet the local AI gen printing
-- Add option to import custom prompt from file
+- Add option to quiet the local AI logging

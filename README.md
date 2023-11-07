@@ -3,8 +3,8 @@
 Play stupid trivia with GPT-4, inspired by DougDoug's ridiculous AI trivia stream.
 
 **Notes**
-- I threw this together just for fun, so the code is messy and might not work correctly sometimes. These instructions may not be complete or accurate either
-- Only tested on Windows. All of the resources *should* work on Linux, but likely require extra setup/packages that aren't noted here
+- I threw this together just for fun and just for me, so the code is messy and might not work correctly sometimes. These instructions may not be complete or accurate either
+- Only tested on Windows. The resources *could* work on Linux, but likely require extra setup/packages that aren't noted here
 - Speech-to-Text will use the default mic unless an override is set
 
 **Required**
@@ -32,4 +32,5 @@ Play stupid trivia with GPT-4, inspired by DougDoug's ridiculous AI trivia strea
 - The full Bark model requires 12GB of VRAM. This can be lowered to 8GB by setting `SUNO_USE_SMALL_MODELS=True` in your environment
 
 **TODO**
+- Add OpenAI STT (and remove Sphinx and maybe Azure)
 - Add option to quiet the local AI logging

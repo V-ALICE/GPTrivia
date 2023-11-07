@@ -14,7 +14,7 @@ device_id = ""
 enabled = false
 voice_name = "v2/en_speaker_6" # TODO: not a very unicorn-sounding voice
 stream = false
-stream_preload = 2
+stream_preload = 2 # Reasonable for a 4090
 
 [stt.azure]
 enabled = false
@@ -36,7 +36,7 @@ local_nationality = "American"
 
 [openai]
 bypass = false
-model_name = "gpt-4"
+model_name = "gpt-4-turbo-preview"
 per_response_max_tokens = 1024
 use_history = true
 history_max_sets = 5

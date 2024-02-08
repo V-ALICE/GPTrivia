@@ -4,31 +4,17 @@ voice_name = "Patrick"
 model_type = "eleven_multilingual_v1"
 ffmpeg_available = false
 
-[tts.azure]
-enabled = false
-voice_name = "en-US-TonyNeural"
-override_device_id = false
-device_id = ""
-
 [tts.bark]
 enabled = false
 voice_name = "v2/en_speaker_6"
 stream = false
-stream_preload = 2 # Reasonable for a 4090
+stream_preload = 3  # 2-3 is reasonable for a 4090
 
 [stt.azure]
 enabled = false
-push_to_talk = true
-override_device_id = false
-device_id = ""
 
-[stt.sphinx]
+[stt.openai]
 enabled = false
-pause_threshold = 1.5
-energy_threshold = 300
-auto_calibrate = true
-override_device_index = false
-device_index = 0
 
 [game]
 grade_level = "1st"

@@ -23,9 +23,9 @@ class AiTrivia:
         self._config = config
         self._logger = logging.getLogger("aitrivia")
         self._logger.setLevel(config["logging"]["level"])
-        self._tts_manager = TextToSpeechManager(config["tts"], config["logging"]["level"])
-        self._stt_manager = SpeechToTextManager(config["stt"], config["logging"]["level"])
         self._client = openai.OpenAI()
+        self._tts_manager = TextToSpeechManager(config["tts"], config["logging"]["level"], self._client)
+        self._stt_manager = SpeechToTextManager(config["stt"], config["logging"]["level"], self._client)
 
         # Optionally add an extra rule from config
         ex = ""

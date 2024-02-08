@@ -4,18 +4,18 @@ Play stupid trivia with GPT-4, inspired by DougDoug's ridiculous AI trivia strea
 
 **Notes**
 - I threw this together just for fun and just for me, so the code is messy and might not work correctly sometimes. These instructions may not be complete or accurate either
-- Only tested on Windows. The resources *could* work on Linux, but likely require extra setup/packages that aren't noted here
-- Speech-to-Text will use the default mic unless an override is set
+- Only tested on Windows. The resources *could* work on Linux, but would require extra setup/packages that aren't noted here
+- Speech-to-Text will only use the current default mic
 
 **Required**
 - Python >=3.8
 - `pip install -r requirements.txt`
 
 **Optional**
-- If using ElevenLabs (remote) for TTS: `pip install elevenlabs soundfile sounddevice`
-- If using Bark (local) for TTS: `pip install sounddevice git+https://github.com/suno-ai/bark.git`
-- If using Azure (remote) for TTS and/or STT: `pip install azure-cognitiveservices-speech`
-- If using Sphinx (local) for STT: `pip install PyAudio pocketsphinx pySpeechRecognition`
+- If using any of these make sure to set the `enabled` flags in the config file you're using
+- If using ElevenLabs (remote) for text-to-speech: `pip install elevenlabs`
+- If using Bark (local) for text-to-speech: `pip install git+https://github.com/suno-ai/bark.git`
+- If using Azure (remote) for speech-to-text: `pip install azure-cognitiveservices-speech`
 
 **Environment**
 - Add `OPENAI_API_KEY` and `OPENAI_ORG_ID` to .env file (or environment variables)
@@ -32,5 +32,6 @@ Play stupid trivia with GPT-4, inspired by DougDoug's ridiculous AI trivia strea
 - The full Bark model requires 12GB of VRAM. This can be lowered to 8GB by setting `SUNO_USE_SMALL_MODELS=True` in your environment
 
 **TODO**
-- Add OpenAI STT (and remove Sphinx and maybe Azure)
+- Add OpenAI TTS?
+- Add local Whisper STT?
 - Add option to quiet the local AI logging

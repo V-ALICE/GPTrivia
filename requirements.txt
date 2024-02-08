@@ -1,5 +1,7 @@
 numpy
-openai
+openai >= 1.11.0
 pynput
 python-dotenv
+sounddevice
+soundfile
 toml

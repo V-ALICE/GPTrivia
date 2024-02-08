@@ -29,9 +29,8 @@ Play stupid trivia with GPT-4, inspired by DougDoug's ridiculous AI trivia strea
 - See https://github.com/suno-ai/bark
 - Bark is a local Text-to-Speech model and takes time to run even on high-end hardware. If you don't have a decent GPU with 8+ GB of VRAM, consider sticking to remote options
 - You may need to install a different version of torch depending on your CUDA version
-- The full Bark model requires 12GB of VRAM. This can be lowered to 8GB by setting `SUNO_USE_SMALL_MODELS=True` in your environment
+- The full Bark model requires 12GB of VRAM. This can be lowered to 8GB (4GB?) by setting `SUNO_USE_SMALL_MODELS=True` in your environment
 
 **TODO**
-- Add OpenAI TTS?
 - Add local Whisper STT?
-- Add option to quiet the local AI logging
+- Add option to quiet the local AI logging?

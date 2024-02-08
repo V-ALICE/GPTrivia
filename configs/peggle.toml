@@ -1,20 +1,25 @@
-[tts.eleven]
+[tts.eleven]  # Free allotment per month and then paid
 enabled = false
 voice_name = "Fin"
 model_type = "eleven_multilingual_v1"
 ffmpeg_available = false
 
-[tts.bark]
+[tts.bark]  # Local
 enabled = false
 voice_name = "v2/en_speaker_6" # TODO: not a very unicorn-sounding voice
 stream = false
 stream_preload = 3  # 2-3 is reasonable for a 4090
 
-[stt.azure]
+[tts.openai]  # Cost per 1000 characters 
+enabled = true
+voice_name = "fable"
+high_quality = true
+
+[stt.azure]  # Effectively free?
 enabled = false
 
-[stt.openai]
-enabled = false
+[stt.openai]  # Cost per second of audio
+enabled = true
 
 [game]
 grade_level = "1st"

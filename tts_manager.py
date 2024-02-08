@@ -1,9 +1,12 @@
+import io
 import logging
 import os
 import threading
 from queue import Empty, Queue
 
 import openai
+import sounddevice
+import soundfile
 
 try:
     import elevenlabs
@@ -14,7 +17,6 @@ except ImportError or ModuleNotFoundError:
 
 try:
     import bark
-    import sounddevice
 
     _BARK_LOAD = True
 except ImportError or ModuleNotFoundError:
@@ -47,6 +49,9 @@ class TextToSpeechManager:
         if self._use_bark:
             self._logger.info("Loading Bark models... If the models aren't cached yet this will take a while")
             bark.preload_models()
+
+        # OpenAI audio
+        self._use_openai = config["openai"]["enabled"]
 
     def _smart_split(self, content: str, max_len: int = 200) -> list[str]:
         tier1_splits = [".", "?", "!"]  # Ideal to split at these characters
@@ -138,12 +143,26 @@ class TextToSpeechManager:
                 sounddevice.wait()
         return True
 
+    def _speak_openai(self, content: str) -> bool:
+        model = "tts-1-hd" if self._config["openai"]["high_quality"] else "tts-1"
+        response = self._client.audio.speech.create(
+            model=model,
+            voice=self._config["openai"]["voice_name"],
+            input=content,
+        )
+
+        data, sample_rate = soundfile.read(io.BytesIO(response.read()))
+        sounddevice.play(data, sample_rate)
+        sounddevice.wait()
+
     def speak(self, content: str) -> bool:
         try:
             if self._use_eleven:
                 return self._speak_eleven(content)
             if self._use_bark:
                 return self._speak_bark(content)
+            if self._use_openai:
+                return self._speak_openai(content)
         except Exception as e:
             self._logger.warning(f'Voice synthesis failed with: "{e}"')
         return False

@@ -132,6 +132,7 @@ class SpeechToTextManager:
         # Whisper likes to make up things when input doesn't sound like speech
         junk_strings = [
             "MBC 뉴스 이덕영입니다.",
+            "워싱턴에서 MBC 뉴스 이덕영입니다.",
             "😍😍😍😍",
             "😆 😆",
             "ご視聴ありがとうございました。",
